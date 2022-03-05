@@ -10,8 +10,9 @@ pub struct QuantumState {
 }
 
 impl QuantumState {
-    pub fn initialize_quantum_state(&mut self, dim: u64) {
-        let mut state_vector = Vec::new();
+    fn create_init_state(dim: u64) -> Vec<Complex64> {
+        //let mut state_vector = Vec::new();
+        let mut state_vector = Vec::with_capacity(dim as usize);
         for i in 0..dim {
             let v = if i == 0 {
                 Complex64::new(1.0, 0.0)
@@ -20,19 +21,20 @@ impl QuantumState {
             };
             state_vector.push(v);
         }
-        self.state_vector = state_vector;
+        state_vector
+    }
+    pub fn initialize_quantum_state(&mut self, dim: u64) {
+        self.state_vector = QuantumState::create_init_state(dim);
     }
 
     pub fn new(qubit_count: u32) -> QuantumState {
         let dim = 1 << qubit_count;
-        let state_vector = Vec::with_capacity(dim as usize);
-        let mut this = QuantumState {
+        let state_vector = QuantumState::create_init_state(dim);
+        QuantumState {
             qubit_count,
             dim,
             state_vector,
-        };
-        this.initialize_quantum_state(dim);
-        this
+        }
     }
 }
 
