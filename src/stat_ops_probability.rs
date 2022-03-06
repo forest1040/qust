@@ -1,6 +1,6 @@
 use num_complex::Complex64;
 
-pub fn M0_prob(target_qubit_index: usize, state: &Vec<Complex64>, dim: u64) -> f64 {
+pub fn m0_prob(target_qubit_index: usize, state: &Vec<Complex64>, dim: u64) -> f64 {
     let loop_dim = dim / 2;
     let mask: usize = 1 << target_qubit_index;
     let mut sum = 0.;

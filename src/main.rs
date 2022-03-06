@@ -1,5 +1,8 @@
 use num_complex::Complex64;
 use qust::state::QuantumState;
+
+// TODO: 内部表現のnum_complex::Complex64を隠蔽したい loadのIFの追加
+
 fn main() {
     let n = 2;
     let mut state = QuantumState::new(n);
@@ -21,13 +24,13 @@ fn main() {
     let vec = state.get_vector();
     println!("{:?}", vec);
 
-    let mut newState = Vec::new();
-    newState.push(Complex64 { re: 0.5, im: 0.0 });
-    newState.push(Complex64 { re: 0.5, im: 0.0 });
-    newState.push(Complex64 { re: 0.5, im: 0.0 });
-    newState.push(Complex64 { re: 0.5, im: 0.0 });
+    let mut new_state = Vec::new();
+    new_state.push(Complex64 { re: 0.5, im: 0. });
+    new_state.push(Complex64 { re: 0.5, im: 0. });
+    new_state.push(Complex64 { re: 0.5, im: 0. });
+    new_state.push(Complex64 { re: 0.5, im: 0. });
 
-    state.load(newState);
+    state.load(new_state);
     println!("{}", state);
 
     let n = 5;
@@ -36,4 +39,18 @@ fn main() {
     let index = 3;
     let zero_probability = state.get_zero_probability(index);
     println!("prob_meas_3rd : {}", zero_probability);
+
+    // let n = 2;
+    // let mut state = QuantumState::new(n);
+    // let mut new_state = Vec::new();
+    // new_state.push(Complex64 {
+    //     re: 1. / 2.0_f64.sqrt(),
+    //     im: 0.,
+    // });
+    // new_state.push(Complex64 { re: 0., im: 0. });
+    // new_state.push(Complex64 { re: 0.5, im: 0. });
+    // new_state.push(Complex64 { re: 0.5, im: 0. });
+    // state.load(new_state);
+    // let data = state.sampling(10);
+    // println!("{:?}", data);
 }

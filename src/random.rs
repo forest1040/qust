@@ -1,3 +1,4 @@
+use rand::Rng;
 use srand::{Rand, RngSource};
 
 pub struct Xor128 {
@@ -42,4 +43,9 @@ impl Xor128 {
         (-1.0 * self.random_uniform().log(std::f64::consts::E)).sqrt()
             * (2.0 * std::f64::consts::PI * self.random_uniform()).sin()
     }
+}
+
+pub fn uniform() -> f64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(0.0..1.0)
 }
