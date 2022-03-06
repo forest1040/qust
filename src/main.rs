@@ -1,5 +1,4 @@
 //use std::collections::HashMap;
-//use libresolv_sys::ULONG_MAX;
 use num_complex::Complex64;
 use srand::{Rand, RngSource};
 use std::fmt;
@@ -33,20 +32,18 @@ impl Xor128 {
         self.y = self.z;
         self.z = self.w;
         self.w = (self.w ^ (self.w >> 19)) ^ (t ^ (t >> 8));
-        self.w & 0x7FFFFFFF
+        self.w
     }
 
     pub fn random_uniform(&mut self) -> f64 {
-        self.next() as f64 / (std::u64::MAX - 1) as f64
+        self.next() as f64 / std::u64::MAX as f64
     }
 
     pub fn random_normal(&mut self) -> f64 {
         // return sqrt(-1.0 * log(random_uniform(state))) *
         //     sin(2.0 * M_PI * random_uniform(state));
         (-1.0 * self.random_uniform().log(std::f64::consts::E)).sqrt()
-            * 2.0
-            * std::f64::consts::PI
-            * self.random_uniform()
+            * (2.0 * std::f64::consts::PI * self.random_uniform()).sin()
     }
 }
 
@@ -90,21 +87,14 @@ impl QuantumState {
         }
     }
 
-    pub fn set_computational_basis(&mut self, comp_basis: u64) {
+    pub fn set_computational_basis(&mut self, comp_basis: usize) {
         // TODO: validate
         // if (comp_basis >= (ITYPE)(1ULL << this->qubit_count)) {
         //     throw std::invalid_argument("basis index >= 2^n");
         // }
         self.set_zero_state();
-        // self.state_vector[0] = Complex64::new(0.0, 0.0);
-        // TODO: error check
-        let _ = std::mem::replace(&mut self.state_vector[0], Complex64::new(0.0, 0.0));
-        // self.state_vector[comp_basis] = Complex64::new(1.0, 0.0);
-        // TODO: error check
-        let _ = std::mem::replace(
-            &mut self.state_vector[comp_basis as usize],
-            Complex64::new(1.0, 0.0),
-        );
+        self.state_vector[0] = Complex64::new(0.0, 0.0);
+        self.state_vector[comp_basis] = Complex64::new(1.0, 0.0);
     }
 
     pub fn set_haar_random_state(&mut self, seed: i64) {
@@ -118,21 +108,13 @@ impl QuantumState {
             let r1 = xor.random_normal();
             let r2 = xor.random_normal();
             //state[index] = r1 + 1.i * r2;
-            // TODO: error check
-            let _ = std::mem::replace(
-                &mut self.state_vector[i as usize],
-                Complex64::new(r1, i as f64 * r2),
-            );
+            self.state_vector[i as usize] = Complex64::new(r1, r2);
             norm += r1 * r1 + r2 * r2;
         }
         let norm = norm.sqrt();
         for i in 0..self.dim {
             //     state[index] /= norm;
-            let comp = self.state_vector.get(i as usize);
-            let mut comp = *comp.unwrap();
-            comp /= norm;
-            // TODO: error check
-            let _ = std::mem::replace(&mut self.state_vector[i as usize], comp);
+            self.state_vector[i as usize] /= norm;
         }
     }
 }
