@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "num-complex"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -31,4 +37,14 @@ name = "qust"
 version = "0.1.0"
 dependencies = [
  "num-complex",
+ "srand",
+]
+
+[[package]]
+name = "srand"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf4b5c06dab00b9460e5d0a885a6bf891457f2e42b70f5a343d6b17382431b90"
+dependencies = [
+ "lazy_static",
 ]
