@@ -1,10 +1,11 @@
 //use crate::binary_search::BinarySearch;
-use crate::binary_search::BinarySearch;
+//use crate::binary_search::BinarySearch;
 use crate::random::Xor128;
 use crate::stat_ops_probability;
-use num_complex::{Complex, Complex64};
+//use num_complex::{Complex, Complex64};
+use num_complex::{Complex64};
 //use rand::{seq::IteratorRandom, thread_rng};
-use rand::Rng;
+//use rand::Rng;
 use std::fmt;
 
 //use std::collections::HashMap;
@@ -88,6 +89,9 @@ impl QuantumState {
         // }
         stat_ops_probability::m0_prob(target_qubit_index, &self.get_vector(), self.dim)
     }
+
+    // pub fn sampling(&self, sampling_count: usize) -> Vec<f64> {
+    // }
 
     // pub fn sampling(&self, sampling_count: usize) -> Vec<f64> {
     //     let mut sum = 0.;

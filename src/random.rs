@@ -37,6 +37,7 @@ impl Xor128 {
         self.next() as f64 / std::u64::MAX as f64
     }
 
+    // Box–Muller法
     pub fn random_normal(&mut self) -> f64 {
         // return sqrt(-1.0 * log(random_uniform(state))) *
         //     sin(2.0 * M_PI * random_uniform(state));
