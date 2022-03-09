@@ -1,5 +1,4 @@
 //use crate::binary_search::BinarySearch;
-//use crate::binary_search::BinarySearch;
 use crate::random::Xor128;
 use crate::stat_ops_probability;
 //use num_complex::{Complex, Complex64};
@@ -7,6 +6,9 @@ use num_complex::{Complex64};
 //use rand::{seq::IteratorRandom, thread_rng};
 //use rand::Rng;
 use std::fmt;
+
+use rand::prelude::{Distribution, thread_rng};
+use rand::distributions::WeightedIndex;
 
 //use std::collections::HashMap;
 
@@ -90,50 +92,23 @@ impl QuantumState {
         stat_ops_probability::m0_prob(target_qubit_index, &self.get_vector(), self.dim)
     }
 
-    // pub fn sampling(&self, sampling_count: usize) -> Vec<f64> {
-    // }
-
-    // pub fn sampling(&self, sampling_count: usize) -> Vec<f64> {
-    //     let mut sum = 0.;
-    //     let mut stacked_prob = Vec::with_capacity(self.dim as usize + 1);
-    //     stacked_prob.push(0.);
-    //     for i in 0..self.dim as usize {
-    //         //sum += norm(ptr[i]);
-    //         sum += self.state_vector[i].norm();
-    //         stacked_prob.push(sum);
-    //     }
-    //     let mut rng = thread_rng();
-    //     let sample = stacked_prob
-    //         .iter()
-    //         .choose_multiple(&mut rng, sampling_count);
-    //     let mut result = Vec::with_capacity(sampling_count);
-    //     for s in sample {
-    //         result.push(s.clone());
-    //     }
-    //     result
-    // }
-
-    // // -> Vec<f64>
-    // pub fn sampling(&self, sampling_count: usize) -> Vec<usize> {
-    //     let mut sum = 0.;
-    //     let mut stacked_prob = Vec::with_capacity(self.dim as usize + 1);
-    //     stacked_prob.push(0.);
-    //     for i in 0..self.dim as usize {
-    //         //sum += norm(ptr[i]);
-    //         sum += self.state_vector[i].norm();
-    //         stacked_prob.push(sum);
-    //     }
-    //     //let sorted_prob = stacked_prob.sort();
-    //     //let mut rng = thread_rng();
-    //     let mut rng = rand::thread_rng();
-    //     let mut result = Vec::with_capacity(sampling_count);
-    //     for count in 0..sampling_count {
-    //         let r = rng.gen_range(0.0..1.0);
-    //         let index = stacked_prob.binary_search(&r);
-    //         result.push(index.ok().unwrap());
-    //     }
-    //     result
-    // }
+    pub fn sampling(&self, sampling_count: usize) ->Vec<usize> {
+        let mut sum = 0.;
+        let mut weights = Vec::with_capacity(self.dim as usize + 1);
+        weights.push(0.);
+        for i in 0..self.dim as usize {
+            //sum += norm(ptr[i]);
+            sum += self.state_vector[i].norm();
+            weights.push(sum);
+        }
+        let dist = WeightedIndex::new(&weights).unwrap();
+        let mut rng = thread_rng();
+        let mut result: Vec<usize> = Vec::with_capacity(sampling_count);
+        for _ in 0..sampling_count {
+            result.push(dist.sample(&mut rng)-1);
+        }
+        result
+    }
 
     pub fn get_vector(&self) -> &Vec<Complex64> {
         &self.state_vector
