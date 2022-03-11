@@ -53,4 +53,16 @@ fn main() {
     state.load(new_state);
     let data = state.sampling(10);
     println!("{:?}", data);
+
+
+    let n = 5;
+    let mut state_bra = QuantumState::new(n);
+    let mut state_ket = QuantumState::new(n);
+    state_bra.set_haar_random_state(0);
+    state_ket.set_computational_basis(0);
+
+    // 内積値の計算
+    let value = QuantumState::inner_product(state_bra, state_ket);
+    println!("{:?}", value);
+
 }

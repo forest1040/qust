@@ -2,15 +2,17 @@
 use crate::random::Xor128;
 use crate::stat_ops_probability;
 //use num_complex::{Complex, Complex64};
-use num_complex::{Complex64};
+use num_complex::Complex64;
 //use rand::{seq::IteratorRandom, thread_rng};
 //use rand::Rng;
 use std::fmt;
 
-use rand::prelude::{Distribution, thread_rng};
 use rand::distributions::WeightedIndex;
+use rand::prelude::{thread_rng, Distribution};
 
 //use std::collections::HashMap;
+//use ndarray::{Array, Vector};
+//use ndarray::{Array, Ix1};
 
 pub struct QuantumState {
     dim: u64,
@@ -92,7 +94,7 @@ impl QuantumState {
         stat_ops_probability::m0_prob(target_qubit_index, &self.get_vector(), self.dim)
     }
 
-    pub fn sampling(&self, sampling_count: usize) ->Vec<usize> {
+    pub fn sampling(&self, sampling_count: usize) -> Vec<usize> {
         let mut sum = 0.;
         let mut weights = Vec::with_capacity(self.dim as usize + 1);
         weights.push(0.);
@@ -105,9 +107,39 @@ impl QuantumState {
         let mut rng = thread_rng();
         let mut result: Vec<usize> = Vec::with_capacity(sampling_count);
         for _ in 0..sampling_count {
-            result.push(dist.sample(&mut rng)-1);
+            result.push(dist.sample(&mut rng) - 1);
         }
         result
+    }
+
+    // pub fn inner_product(
+    //     state_bra: &Array<Complex64, Ix1>,
+    //     state_ket: &Array<Complex64, Ix1>,
+    // ) -> Complexf64 {
+    //     let vs = state_ket.iter().map(|x| x.conj()).collect();
+    //     let result = state_bra.dot(&vs);
+    //     //result
+    // }
+
+    pub fn inner_product(state_bra: QuantumState, state_ket: QuantumState) -> Complex64 {
+        // double real_sum = 0.;
+        // double imag_sum = 0.;
+        // ITYPE index;
+        // for (index = 0; index < dim; ++index) {
+        //     CTYPE value;
+        //     value += conj(state_bra[index]) * state_ket[index];
+        //     real_sum += _creal(value);
+        //     imag_sum += _cimag(value);
+        // }
+        // return real_sum + 1.i * imag_sum;
+        let mut real_sum = 0.;
+        let mut imag_sum = 0.;
+        for i in 0..state_bra.dim as usize {
+            let value = state_bra.state_vector[i].conj() * state_ket.state_vector[i];
+            real_sum += value.re;
+            imag_sum += value.im;
+        }
+        Complex64::new(real_sum, imag_sum)
     }
 
     pub fn get_vector(&self) -> &Vec<Complex64> {
