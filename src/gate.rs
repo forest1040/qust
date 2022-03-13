@@ -1,6 +1,6 @@
 //use std::collections::HashMap;
 use crate::state::QuantumState;
-use crate::update_ops_matrix_dense_single;
+//use crate::update_ops_matrix_dense_single;
 use ndarray::prelude::*;
 use num_complex::Complex64;
 
@@ -128,7 +128,7 @@ impl QuantumGate {
     //     // }
     // }
 
-    pub fn update_quantum_state(&self, state: &QuantumState) {
+    pub fn update_quantum_state(&self, state: &mut QuantumState) {
         // TODO: is_state_vector
         // TODO: _special_func_type
         // if (state.is_state_vector()) {
@@ -142,7 +142,7 @@ impl QuantumGate {
         self.update_state_vector_cpu_general(state);
     }
 
-    fn update_state_vector_cpu_general(&self, state: &QuantumState) {
+    fn update_state_vector_cpu_general(&self, state: &mut QuantumState) {
         match self.matrix_type {
             GateMatrixType::DenseMatrix => {
                 // single qubit dense matrix gate
@@ -159,73 +159,43 @@ impl QuantumGate {
                             .into_shape(h * w)
                             .unwrap()
                             .to_vec();
-                        update_ops_matrix_dense_single::single_qubit_dense_matrix_gate(
+                        // update_ops_matrix_dense_single::single_qubit_dense_matrix_gate(
+                        //     self.target_qubit_index[0],
+                        //     vector2,
+                        //     state,
+                        //     state.get_dim(),
+                        // );
+                        state.single_qubit_dense_matrix_gate(
                             self.target_qubit_index[0],
                             vector2,
-                            state,
                             state.get_dim(),
                         );
                     }
                     // single control qubit
                     else if self.control_qubit_index.len() == 1 {
-                        update_ops_matrix_dense_single::single_qubit_control_single_qubit_dense_matrix_gate();
+                        let (w, h) = {
+                            let shape = self.dense_matrix_element.shape();
+                            (shape[1], shape[0])
+                        };
+                        let vector2 = self
+                            .dense_matrix_element
+                            .clone()
+                            .into_shape(h * w)
+                            .unwrap()
+                            .to_vec();
+                        //update_ops_matrix_dense_single::single_qubit_control_single_qubit_dense_matrix_gate(self.control_qubit_index[0] as u64, self.control_qubit_value[0] as u64, self.target_qubit_index[0] as u64, vector2, state, state.get_dim());
+                        state.single_qubit_control_single_qubit_dense_matrix_gate(
+                            self.control_qubit_index[0] as u64,
+                            self.control_qubit_value[0] as u64,
+                            self.target_qubit_index[0] as u64,
+                            vector2,
+                            state.get_dim(),
+                        );
                     }
                 }
             }
             GateMatrixType::PauliMatrix => {}
         }
-
-        // const CTYPE* matrix_ptr =
-        //     reinterpret_cast<const CTYPE*>(this->_dense_matrix_element.data());
-        // // single qubit dense matrix gate
-        // if (_target_qubit_index.size() == 1) {
-        //     // no control qubit
-        //     if (_control_qubit_index.size() == 0) {
-        //         single_qubit_dense_matrix_gate(_target_qubit_index[0],
-        //             matrix_ptr, state->data_c(), state->dim);
-        //     }
-        //     // single control qubit
-        //     else if (_control_qubit_index.size() == 1) {
-        //         single_qubit_control_single_qubit_dense_matrix_gate(
-        //             _control_qubit_index[0], _control_qubit_value[0],
-        //             _target_qubit_index[0], matrix_ptr, state->data_c(),
-        //             state->dim);
-        //     }
-        //     // multiple control qubits
-        //     else {
-        //         multi_qubit_control_single_qubit_dense_matrix_gate(
-        //             _control_qubit_index.data(), _control_qubit_value.data(),
-        //             (UINT)(_control_qubit_index.size()), _target_qubit_index[0],
-        //             matrix_ptr, state->data_c(), state->dim);
-        //     }
-        // }
-
-        // // multi qubit dense matrix gate
-        // else {
-        //     // no control qubit
-        //     if (_control_qubit_index.size() == 0) {
-        //         multi_qubit_dense_matrix_gate(_target_qubit_index.data(),
-        //             (UINT)(_target_qubit_index.size()), matrix_ptr,
-        //             state->data_c(), state->dim);
-        //     }
-        //     // single control qubit
-        //     else if (_control_qubit_index.size() == 1) {
-        //         single_qubit_control_multi_qubit_dense_matrix_gate(
-        //             _control_qubit_index[0], _control_qubit_value[0],
-        //             _target_qubit_index.data(),
-        //             (UINT)(_target_qubit_index.size()), matrix_ptr,
-        //             state->data_c(), state->dim);
-        //     }
-        //     // multiple control qubit
-        //     else {
-        //         multi_qubit_control_multi_qubit_dense_matrix_gate(
-        //             _control_qubit_index.data(), _control_qubit_value.data(),
-        //             (UINT)(_control_qubit_index.size()),
-        //             _target_qubit_index.data(),
-        //             (UINT)(_target_qubit_index.size()), matrix_ptr,
-        //             state->data_c(), state->dim);
-        //     }
-        // }
     }
 
     // pub fn new(matrix_type: GateMatrixType, target_qubit: &Vec<usize>, matrix: &Array2<Complex64>, target_commute: &Vec<usize>) -> QuantumGate {
@@ -233,6 +203,7 @@ impl QuantumGate {
 
     // }
 
+    //#[warn(non_snake_case)]
     pub fn DenseMatrixGate(
         target_qubit_index: Vec<usize>,
         dense_matrix_element: Array2<Complex64>,
@@ -256,6 +227,7 @@ impl QuantumGate {
         }
     }
 
+    //#[warn(non_snake_case)]
     pub fn PauliMatrixGate(
         target_qubit_index: Vec<usize>,
         pauli_id: Vec<usize>,
