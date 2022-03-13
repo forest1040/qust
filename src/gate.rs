@@ -1,8 +1,8 @@
 //use std::collections::HashMap;
+use crate::state::QuantumState;
+use crate::update_ops_matrix_dense_single;
 use ndarray::prelude::*;
 use num_complex::Complex64;
-
-use crate::state::QuantumState;
 
 // enum MapType {
 //     Basic,
@@ -144,7 +144,34 @@ impl QuantumGate {
 
     fn update_state_vector_cpu_general(&self, state: &QuantumState) {
         match self.matrix_type {
-            GateMatrixType::DenseMatrix => {}
+            GateMatrixType::DenseMatrix => {
+                // single qubit dense matrix gate
+                if self.target_qubit_index.len() == 1 {
+                    // no control qubit
+                    if self.control_qubit_index.len() == 0 {
+                        let (w, h) = {
+                            let shape = self.dense_matrix_element.shape();
+                            (shape[1], shape[0])
+                        };
+                        let vector2 = self
+                            .dense_matrix_element
+                            .clone()
+                            .into_shape(h * w)
+                            .unwrap()
+                            .to_vec();
+                        update_ops_matrix_dense_single::single_qubit_dense_matrix_gate(
+                            self.target_qubit_index[0],
+                            vector2,
+                            state,
+                            state.get_dim(),
+                        );
+                    }
+                    // single control qubit
+                    else if self.control_qubit_index.len() == 1 {
+                        update_ops_matrix_dense_single::single_qubit_control_single_qubit_dense_matrix_gate();
+                    }
+                }
+            }
             GateMatrixType::PauliMatrix => {}
         }
 

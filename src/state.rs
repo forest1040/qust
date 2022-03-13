@@ -146,6 +146,10 @@ impl QuantumState {
         &self.state_vector
     }
 
+    pub fn get_dim(&self) -> u64 {
+        self.dim
+    }
+
     pub fn load(&mut self, state: Vec<Complex64>) {
         // TODO: validate
         // if (_state.size() != _dim) {
