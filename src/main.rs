@@ -4,6 +4,10 @@ use qust::state::QuantumState;
 // TODO: 内部表現のnum_complex::Complex64を隠蔽したい loadのIFの追加
 
 fn main() {
+    let n = 4;
+    let state = QuantumState::new(n);
+    println!("{}", state);
+
     let n = 2;
     let mut state = QuantumState::new(n);
     println!("{}", state);
@@ -54,7 +58,6 @@ fn main() {
     let data = state.sampling(10);
     println!("{:?}", data);
 
-
     let n = 5;
     let mut state_bra = QuantumState::new(n);
     let mut state_ket = QuantumState::new(n);
@@ -64,5 +67,4 @@ fn main() {
     // 内積値の計算
     let value = QuantumState::inner_product(state_bra, state_ket);
     println!("{:?}", value);
-
 }
