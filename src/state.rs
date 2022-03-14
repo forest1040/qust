@@ -263,8 +263,10 @@ impl QuantumState {
         matrix: Vec<Complex64>,
         dim: u64,
     ) {
-        let sort_array: [usize; 64];
-        let mask_array: [usize; 64];
+        // let sort_array: [usize; 64];
+        // let mask_array: [usize; 64];
+        let mut sort_array = Vec::with_capacity(64) as Vec<usize>;
+        let mut mask_array = Vec::with_capacity(64) as Vec<usize>;
         self.create_shift_mask_list_from_list_and_value_buf(
             control_qubit_index_list,
             control_qubit_index_count,
@@ -289,8 +291,8 @@ impl QuantumState {
         array: &Vec<usize>,
         count: usize,
         target: usize,
-        dst_array: &mut [usize; 64],
-        dst_mask: &mut [usize; 64],
+        dst_array: &mut Vec<usize>,
+        dst_mask: &mut Vec<usize>,
     ) {
         // TODO: memcpy() to copy_from()
         // memcpy(dst_array, array, sizeof(UINT) * count);
@@ -312,7 +314,7 @@ impl QuantumState {
         value_list: &Vec<usize>,
         size: usize,
     ) -> usize {
-        let mask = 0;
+        let mut mask = 0;
         for cursor in 0..size {
             mask ^= (1 << qubit_index_list[cursor]) * value_list[cursor];
         }
