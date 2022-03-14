@@ -1,4 +1,5 @@
 //use crate::binary_search::BinarySearch;
+use crate::qsort;
 use crate::random::Xor128;
 use crate::stat_ops_probability;
 //use num_complex::{Complex, Complex64};
@@ -251,6 +252,71 @@ impl QuantumState {
                     matrix[2] * cval2 + matrix[3] * cval3;
             }
         }
+    }
+
+    pub fn multi_qubit_control_single_qubit_dense_matrix_gate(
+        &mut self,
+        control_qubit_index_list: &Vec<usize>,
+        control_value_list: &Vec<usize>,
+        control_qubit_index_count: usize,
+        target_qubit_index: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        let sort_array: [usize; 64];
+        let mask_array: [usize; 64];
+        self.create_shift_mask_list_from_list_and_value_buf(
+            control_qubit_index_list,
+            control_qubit_index_count,
+            target_qubit_index,
+            &mut sort_array,
+            &mut mask_array,
+        );
+        let target_mask = 1 << target_qubit_index;
+        let control_mask = self.create_control_mask(
+            control_qubit_index_list,
+            control_value_list,
+            control_qubit_index_count,
+        );
+        let insert_index_list_count = control_qubit_index_count + 1;
+        let loop_dim = dim >> insert_index_list_count;
+
+        // TODO:
+    }
+
+    fn create_shift_mask_list_from_list_and_value_buf(
+        &self,
+        array: &Vec<usize>,
+        count: usize,
+        target: usize,
+        dst_array: &mut [usize; 64],
+        dst_mask: &mut [usize; 64],
+    ) {
+        // TODO: memcpy() to copy_from()
+        // memcpy(dst_array, array, sizeof(UINT) * count);
+        let size = count + 1;
+        for i in 0..array.len() {
+            dst_array[i] = array[i];
+        }
+        dst_array[count] = target;
+        //let mut dst = vec![..dst_array];
+        qsort::quick_sort(dst_array, 0, size);
+        for i in 0..size {
+            dst_mask[i] = (1 << dst_array[i]) - 1;
+        }
+    }
+
+    fn create_control_mask(
+        &self,
+        qubit_index_list: &Vec<usize>,
+        value_list: &Vec<usize>,
+        size: usize,
+    ) -> usize {
+        let mask = 0;
+        for cursor in 0..size {
+            mask ^= (1 << qubit_index_list[cursor]) * value_list[cursor];
+        }
+        mask
     }
 
     #[inline]

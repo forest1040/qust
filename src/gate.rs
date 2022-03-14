@@ -147,24 +147,19 @@ impl QuantumGate {
             GateMatrixType::DenseMatrix => {
                 // single qubit dense matrix gate
                 if self.target_qubit_index.len() == 1 {
+                    let (w, h) = {
+                        let shape = self.dense_matrix_element.shape();
+                        (shape[1], shape[0])
+                    };
+                    let vector2 = self
+                        .dense_matrix_element
+                        .clone()
+                        .into_shape(h * w)
+                        .unwrap()
+                        .to_vec();
+
                     // no control qubit
                     if self.control_qubit_index.len() == 0 {
-                        let (w, h) = {
-                            let shape = self.dense_matrix_element.shape();
-                            (shape[1], shape[0])
-                        };
-                        let vector2 = self
-                            .dense_matrix_element
-                            .clone()
-                            .into_shape(h * w)
-                            .unwrap()
-                            .to_vec();
-                        // update_ops_matrix_dense_single::single_qubit_dense_matrix_gate(
-                        //     self.target_qubit_index[0],
-                        //     vector2,
-                        //     state,
-                        //     state.get_dim(),
-                        // );
                         state.single_qubit_dense_matrix_gate(
                             self.target_qubit_index[0],
                             vector2,
@@ -173,17 +168,6 @@ impl QuantumGate {
                     }
                     // single control qubit
                     else if self.control_qubit_index.len() == 1 {
-                        let (w, h) = {
-                            let shape = self.dense_matrix_element.shape();
-                            (shape[1], shape[0])
-                        };
-                        let vector2 = self
-                            .dense_matrix_element
-                            .clone()
-                            .into_shape(h * w)
-                            .unwrap()
-                            .to_vec();
-                        //update_ops_matrix_dense_single::single_qubit_control_single_qubit_dense_matrix_gate(self.control_qubit_index[0] as u64, self.control_qubit_value[0] as u64, self.target_qubit_index[0] as u64, vector2, state, state.get_dim());
                         state.single_qubit_control_single_qubit_dense_matrix_gate(
                             self.control_qubit_index[0] as u64,
                             self.control_qubit_value[0] as u64,
@@ -191,6 +175,27 @@ impl QuantumGate {
                             vector2,
                             state.get_dim(),
                         );
+                    }
+                    // multiple control qubits
+                    else {
+                        if self.control_qubit_index.len() == 1 {
+                            state.single_qubit_control_single_qubit_dense_matrix_gate(
+                                self.control_qubit_index[0] as u64,
+                                self.control_qubit_value[0] as u64,
+                                self.target_qubit_index[0] as u64,
+                                vector2,
+                                state.get_dim(),
+                            );
+                        } else {
+                            state.multi_qubit_control_single_qubit_dense_matrix_gate(
+                                &self.control_qubit_index,
+                                &self.control_qubit_value,
+                                self.control_qubit_index.len(),
+                                self.target_qubit_index[0],
+                                vector2,
+                                state.get_dim(),
+                            );
+                        }
                     }
                 }
             }
