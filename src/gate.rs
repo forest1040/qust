@@ -143,21 +143,20 @@ impl QuantumGate {
     }
 
     fn update_state_vector_cpu_general(&self, state: &mut QuantumState) {
+        let (w, h) = {
+            let shape = self.dense_matrix_element.shape();
+            (shape[1], shape[0])
+        };
+        let vector2 = self
+            .dense_matrix_element
+            .clone()
+            .into_shape(h * w)
+            .unwrap()
+            .to_vec();
         match self.matrix_type {
             GateMatrixType::DenseMatrix => {
                 // single qubit dense matrix gate
                 if self.target_qubit_index.len() == 1 {
-                    let (w, h) = {
-                        let shape = self.dense_matrix_element.shape();
-                        (shape[1], shape[0])
-                    };
-                    let vector2 = self
-                        .dense_matrix_element
-                        .clone()
-                        .into_shape(h * w)
-                        .unwrap()
-                        .to_vec();
-
                     // no control qubit
                     if self.control_qubit_index.len() == 0 {
                         state.single_qubit_dense_matrix_gate(
@@ -196,6 +195,24 @@ impl QuantumGate {
                                 state.get_dim(),
                             );
                         }
+                    }
+                }
+                // multi qubit dense matrix gate
+                else {
+                    // no control qubit
+                    if self.control_qubit_index.len() == 0 {
+                        state.multi_qubit_dense_matrix_gate(
+                            &self.target_qubit_index,
+                            self.target_qubit_index.len(),
+                            vector2,
+                            state.get_dim(),
+                        );
+                    }
+                    // single control qubit
+                    else if self.control_qubit_index.len() == 0 {
+                    }
+                    // multiple control qubit
+                    else {
                     }
                 }
             }

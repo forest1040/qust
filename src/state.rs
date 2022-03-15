@@ -254,6 +254,122 @@ impl QuantumState {
         }
     }
 
+    pub fn double_qubit_dense_matrix_gate_c(
+        &mut self,
+        target_qubit_index1: usize,
+        target_qubit_index2: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        let min_qubit_index =
+            QuantumState::get_min_ui(target_qubit_index1 as u64, target_qubit_index2 as u64);
+        let max_qubit_index =
+            QuantumState::get_max_ui(target_qubit_index1 as u64, target_qubit_index2 as u64);
+        let min_qubit_mask = 1 << min_qubit_index;
+        let max_qubit_mask = 1 << (max_qubit_index - 1);
+        let low_mask = min_qubit_mask - 1;
+        let mid_mask = (max_qubit_mask - 1) ^ low_mask;
+        let high_mask = !(max_qubit_mask - 1);
+        let target_mask1 = 1 << target_qubit_index1;
+        let target_mask2 = 1 << target_qubit_index2;
+        // loop variables
+        let loop_dim = dim / 4;
+        for state_index in 0..loop_dim {
+            // create index
+            let basis_0 = (state_index & low_mask)
+                + ((state_index & mid_mask) << 1)
+                + ((state_index & high_mask) << 2);
+            let basis_0 = basis_0 as usize;
+
+            // gather index
+            let basis_1 = basis_0 + target_mask1;
+            let basis_2 = basis_0 + target_mask2;
+            let basis_3 = basis_1 + target_mask2;
+
+            // fetch values
+            let cval_0 = self.state_vector[basis_0];
+            let cval_1 = self.state_vector[basis_1];
+            let cval_2 = self.state_vector[basis_2];
+            let cval_3 = self.state_vector[basis_3];
+
+            // set values
+            self.state_vector[basis_0] =
+                matrix[0] * cval_0 + matrix[1] * cval_1 + matrix[2] * cval_2 + matrix[3] * cval_3;
+            self.state_vector[basis_1] =
+                matrix[4] * cval_0 + matrix[5] * cval_1 + matrix[6] * cval_2 + matrix[7] * cval_3;
+            self.state_vector[basis_2] =
+                matrix[8] * cval_0 + matrix[9] * cval_1 + matrix[10] * cval_2 + matrix[11] * cval_3;
+            self.state_vector[basis_3] = matrix[12] * cval_0
+                + matrix[13] * cval_1
+                + matrix[14] * cval_2
+                + matrix[15] * cval_3;
+        }
+    }
+
+    pub fn multi_qubit_dense_matrix_gate_single(
+        &mut self,
+        target_qubit_index_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        let mut sort_array = Vec::with_capacity(64) as Vec<usize>;
+        let mut mask_array = Vec::with_capacity(64) as Vec<usize>;
+        self.create_shift_mask_list_from_list_buf(
+            target_qubit_index_list,
+            target_qubit_index_count,
+            &mut sort_array,
+            &mut mask_array,
+        );
+
+        // matrix dim, mask, buffer
+        let matrix_dim = 1 << target_qubit_index_count;
+        let matrix_mask_list =
+            self.create_matrix_mask_list(target_qubit_index_list, target_qubit_index_count);
+        // loop variables
+        let loop_dim = dim >> target_qubit_index_count;
+        let mut buffer = Vec::with_capacity(matrix_dim);
+        for state_index in 0..loop_dim {
+            // create base index
+            let mut basis_0 = state_index as usize;
+            for cursor in 0..target_qubit_index_count {
+                basis_0 = (basis_0 & mask_array[cursor]) + ((basis_0 & (!mask_array[cursor])) << 1);
+            }
+            // compute matrix-vector multiply
+            for y in 0..matrix_dim {
+                buffer.push(Complex64 { re: 0., im: 0. });
+                //buffer[y] = 0;
+                for x in 0..matrix_dim {
+                    buffer[y] += matrix[y * matrix_dim + x]
+                        * self.state_vector[basis_0 ^ matrix_mask_list[x]];
+                }
+            }
+            // set result
+            for y in 0..matrix_dim {
+                self.state_vector[basis_0 ^ matrix_mask_list[y]] = buffer[y];
+            }
+        }
+    }
+
+    fn create_matrix_mask_list(
+        &self,
+        qubit_index_list: &Vec<usize>,
+        qubit_index_count: usize,
+    ) -> Vec<usize> {
+        let matrix_dim = 1 << qubit_index_count;
+        let mut mask_list = Vec::with_capacity(matrix_dim);
+        for cursor in 0..matrix_dim {
+            mask_list.push(0);
+            for bit_cursor in 0..qubit_index_count {
+                if (cursor >> bit_cursor) % 2 == 0 {
+                    let bit_index = qubit_index_list[bit_cursor];
+                    mask_list[cursor] ^= 1 << bit_index;
+                }
+            }
+        }
+        mask_list
+    }
+
     pub fn multi_qubit_control_single_qubit_dense_matrix_gate(
         &mut self,
         control_qubit_index_list: &Vec<usize>,
@@ -263,8 +379,17 @@ impl QuantumState {
         matrix: Vec<Complex64>,
         dim: u64,
     ) {
-        // let sort_array: [usize; 64];
-        // let mask_array: [usize; 64];
+        if control_qubit_index_count == 1 {
+            self.single_qubit_control_single_qubit_dense_matrix_gate(
+                control_qubit_index_list[0] as u64,
+                control_value_list[0] as u64,
+                target_qubit_index as u64,
+                matrix,
+                dim,
+            );
+            return;
+        }
+
         let mut sort_array = Vec::with_capacity(64) as Vec<usize>;
         let mut mask_array = Vec::with_capacity(64) as Vec<usize>;
         self.create_shift_mask_list_from_list_and_value_buf(
@@ -283,7 +408,64 @@ impl QuantumState {
         let insert_index_list_count = control_qubit_index_count + 1;
         let loop_dim = dim >> insert_index_list_count;
 
-        // TODO:
+        if target_qubit_index == 0 {
+            for state_index in 0..loop_dim {
+                // create base index
+                let mut basis_0 = state_index as usize;
+                for cursor in 0..insert_index_list_count {
+                    basis_0 =
+                        (basis_0 & mask_array[cursor]) + ((basis_0 & (!mask_array[cursor])) << 1);
+                }
+                basis_0 += control_mask;
+
+                // fetch values
+                let cval0 = self.state_vector[basis_0];
+                let cval1 = self.state_vector[basis_0 + 1];
+                // set values
+                self.state_vector[basis_0] = matrix[0] * cval0 + matrix[1] * cval1;
+                self.state_vector[basis_0 + 1] = matrix[2] * cval0 + matrix[3] * cval1;
+            }
+        } else if sort_array[0] == 0 {
+            for state_index in 0..loop_dim {
+                // create base index
+                let mut basis_0 = state_index as usize;
+                for cursor in 0..insert_index_list_count {
+                    basis_0 =
+                        (basis_0 & mask_array[cursor]) + ((basis_0 & (!mask_array[cursor])) << 1);
+                }
+                basis_0 += control_mask;
+                let basis_1 = basis_0 + target_mask;
+
+                // fetch values
+                let cval0 = self.state_vector[basis_0];
+                let cval1 = self.state_vector[basis_1];
+                // set values
+                self.state_vector[basis_0] = matrix[0] * cval0 + matrix[1] * cval1;
+                self.state_vector[basis_1] = matrix[2] * cval0 + matrix[3] * cval1;
+            }
+        } else {
+            for state_index in (0..loop_dim).step_by(2) {
+                // create base index
+                let mut basis_0 = state_index as usize;
+                for cursor in 0..insert_index_list_count {
+                    basis_0 =
+                        (basis_0 & mask_array[cursor]) + ((basis_0 & (!mask_array[cursor])) << 1);
+                }
+                basis_0 += control_mask;
+                let basis_1 = basis_0 + target_mask;
+
+                // fetch values
+                let cval0 = self.state_vector[basis_0];
+                let cval1 = self.state_vector[basis_1];
+                let cval2 = self.state_vector[basis_0 + 1];
+                let cval3 = self.state_vector[basis_1 + 1];
+                // set values
+                self.state_vector[basis_0] = matrix[0] * cval0 + matrix[1] * cval1;
+                self.state_vector[basis_1] = matrix[2] * cval0 + matrix[3] * cval1;
+                self.state_vector[basis_0 + 1] = matrix[0] * cval2 + matrix[1] * cval3;
+                self.state_vector[basis_1 + 1] = matrix[2] * cval2 + matrix[3] * cval3;
+            }
+        }
     }
 
     fn create_shift_mask_list_from_list_and_value_buf(
@@ -301,9 +483,26 @@ impl QuantumState {
             dst_array[i] = array[i];
         }
         dst_array[count] = target;
-        //let mut dst = vec![..dst_array];
         qsort::quick_sort(dst_array, 0, size);
         for i in 0..size {
+            dst_mask[i] = (1 << dst_array[i]) - 1;
+        }
+    }
+
+    fn create_shift_mask_list_from_list_buf(
+        &self,
+        array: &Vec<usize>,
+        count: usize,
+        dst_array: &mut Vec<usize>,
+        dst_mask: &mut Vec<usize>,
+    ) {
+        // TODO: memcpy() to copy_from()
+        //memcpy(dst_array, array, sizeof(UINT) * count);
+        for i in 0..array.len() {
+            dst_array[i] = array[i];
+        }
+        qsort::quick_sort(dst_array, 0, count);
+        for i in 0..count {
             dst_mask[i] = (1 << dst_array[i]) - 1;
         }
     }
@@ -319,6 +518,32 @@ impl QuantumState {
             mask ^= (1 << qubit_index_list[cursor]) * value_list[cursor];
         }
         mask
+    }
+
+    pub fn multi_qubit_dense_matrix_gate(
+        &mut self,
+        target_qubit_index_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        if target_qubit_index_count == 1 {
+            self.single_qubit_dense_matrix_gate(target_qubit_index_list[0], matrix, dim);
+        } else if target_qubit_index_count == 2 {
+            self.double_qubit_dense_matrix_gate_c(
+                target_qubit_index_list[0],
+                target_qubit_index_list[1],
+                matrix,
+                dim,
+            );
+        } else {
+            self.multi_qubit_dense_matrix_gate_single(
+                target_qubit_index_list,
+                target_qubit_index_count,
+                matrix,
+                dim,
+            )
+        }
     }
 
     #[inline]
