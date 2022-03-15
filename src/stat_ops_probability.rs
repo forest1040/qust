@@ -13,7 +13,11 @@ pub fn m0_prob(target_qubit_index: usize, state: &Vec<Complex64>, dim: u64) -> f
 }
 
 #[inline]
-fn insert_zero_to_basis_index(basis_index: usize, basis_mask: usize, qubit_index: usize) -> usize {
+pub fn insert_zero_to_basis_index(
+    basis_index: usize,
+    basis_mask: usize,
+    qubit_index: usize,
+) -> usize {
     // ITYPE temp_basis = (basis_index >> qubit_index) << (qubit_index + 1);
     // return temp_basis + basis_index % basis_mask;
     let temp_basis = (basis_index >> qubit_index) << (qubit_index + 1);

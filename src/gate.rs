@@ -209,10 +209,27 @@ impl QuantumGate {
                         );
                     }
                     // single control qubit
-                    else if self.control_qubit_index.len() == 0 {
+                    else if self.control_qubit_index.len() == 1 {
+                        state.single_qubit_control_multi_qubit_dense_matrix_gate(
+                            self.control_qubit_index[0],
+                            self.control_qubit_value[0],
+                            &self.target_qubit_index,
+                            self.target_qubit_index.len(),
+                            vector2,
+                            state.get_dim(),
+                        );
                     }
                     // multiple control qubit
                     else {
+                        state.multi_qubit_control_multi_qubit_dense_matrix_gate(
+                            &self.control_qubit_index,
+                            &self.control_qubit_value,
+                            self.control_qubit_index.len(),
+                            &self.target_qubit_index,
+                            self.target_qubit_index.len(),
+                            vector2,
+                            state.get_dim(),
+                        );
                     }
                 }
             }

@@ -468,6 +468,135 @@ impl QuantumState {
         }
     }
 
+    pub fn single_qubit_control_multi_qubit_dense_matrix_gate(
+        &mut self,
+        control_qubit_index: usize,
+        control_value: usize,
+        target_qubit_index_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        // matrix dim, mask, buffer
+        let matrix_dim = 1 << target_qubit_index_count;
+        let matrix_mask_list =
+            self.create_matrix_mask_list(target_qubit_index_list, target_qubit_index_count);
+        //CTYPE* buffer = (CTYPE*)malloc((size_t)(sizeof(CTYPE) * matrix_dim));
+        let mut buffer = Vec::with_capacity(matrix_dim);
+
+        // insert list
+        let insert_index_count = target_qubit_index_count + 1;
+        let sorted_insert_index_list = self.create_sorted_ui_list_value(
+            target_qubit_index_list,
+            target_qubit_index_count,
+            control_qubit_index,
+        );
+
+        // control mask
+        let control_mask = (1 << control_qubit_index) * control_value;
+
+        // loop varaibles
+        let loop_dim = dim >> insert_index_count;
+        for state_index in 0..loop_dim {
+            // create base index
+            let mut basis_0 = state_index as usize;
+            for cursor in 0..insert_index_count {
+                let insert_index = sorted_insert_index_list[cursor];
+                basis_0 = stat_ops_probability::insert_zero_to_basis_index(
+                    basis_0,
+                    1 << insert_index,
+                    insert_index,
+                );
+            }
+
+            // flip control
+            basis_0 ^= control_mask;
+
+            // compute matrix mul
+            for y in 0..matrix_dim {
+                buffer.push(Complex64 { re: 0., im: 0. });
+                //buffer[y] = 0;
+                for x in 0..matrix_dim {
+                    buffer[y] += matrix[y * matrix_dim + x]
+                        * self.state_vector[basis_0 ^ matrix_mask_list[x]];
+                }
+            }
+
+            // set result
+            for y in 0..matrix_dim {
+                self.state_vector[basis_0 ^ matrix_mask_list[y]] = buffer[y];
+            }
+        }
+    }
+
+    pub fn multi_qubit_control_multi_qubit_dense_matrix_gate(
+        &mut self,
+        control_qubit_index_list: &Vec<usize>,
+        control_value_list: &Vec<usize>,
+        control_qubit_index_count: usize,
+        target_qubit_index_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        // matrix dim, mask, buffer
+        let matrix_dim = 1 << target_qubit_index_count;
+        let matrix_mask_list =
+            self.create_matrix_mask_list(target_qubit_index_list, target_qubit_index_count);
+        //CTYPE* buffer = (CTYPE*)malloc((size_t)(sizeof(CTYPE) * matrix_dim));
+        let mut buffer = Vec::with_capacity(matrix_dim);
+
+        // insert index
+        let insert_index_count = target_qubit_index_count + control_qubit_index_count;
+        let sorted_insert_index_list = self.create_sorted_ui_list_list(
+            target_qubit_index_list,
+            target_qubit_index_count,
+            control_qubit_index_list,
+            control_qubit_index_count,
+        );
+
+        // control mask
+        let control_mask = self.create_control_mask(
+            control_qubit_index_list,
+            control_value_list,
+            control_qubit_index_count,
+        );
+
+        // loop varaibles
+        let loop_dim = dim >> (target_qubit_index_count + control_qubit_index_count);
+
+        for state_index in 0..loop_dim {
+            // create base index
+            let mut basis_0 = state_index as usize;
+            for cursor in 0..insert_index_count {
+                let insert_index = sorted_insert_index_list[cursor];
+                basis_0 = stat_ops_probability::insert_zero_to_basis_index(
+                    basis_0,
+                    1 << insert_index,
+                    insert_index,
+                );
+            }
+
+            // flip control masks
+            basis_0 ^= control_mask;
+
+            // compute matrix mul
+            for y in 0..matrix_dim {
+                buffer.push(Complex64 { re: 0., im: 0. });
+                //buffer[y] = 0;
+                for x in 0..matrix_dim {
+                    buffer[y] += matrix[y * matrix_dim + x]
+                        * self.state_vector[basis_0 ^ matrix_mask_list[x]];
+                }
+            }
+
+            // set result
+            for y in 0..matrix_dim {
+                self.state_vector[basis_0 ^ matrix_mask_list[y]] = buffer[y];
+            }
+        }
+    }
+
     fn create_shift_mask_list_from_list_and_value_buf(
         &self,
         array: &Vec<usize>,
@@ -505,6 +634,45 @@ impl QuantumState {
         for i in 0..count {
             dst_mask[i] = (1 << dst_array[i]) - 1;
         }
+    }
+
+    fn create_sorted_ui_list_value(
+        &self,
+        array: &Vec<usize>,
+        size: usize,
+        value: usize,
+    ) -> Vec<usize> {
+        // TODO: memcpy() to copy_from()
+        // UINT* new_array = (UINT*)calloc(size + 1, sizeof(UINT));
+        // memcpy(new_array, array, size * sizeof(UINT));
+        let count = size + 1;
+        let mut new_array = Vec::with_capacity(count);
+        for i in 0..count {
+            new_array.push(0);
+        }
+        new_array[size] = value;
+        //sort_ui(new_array, size + 1);
+        qsort::quick_sort(&mut new_array, 0, count);
+        new_array
+    }
+
+    fn create_sorted_ui_list_list(
+        &self,
+        array1: &Vec<usize>,
+        size1: usize,
+        array2: &Vec<usize>,
+        size2: usize,
+    ) -> Vec<usize> {
+        // UINT* new_array = (UINT*)calloc(size1 + size2, sizeof(UINT));
+        // memcpy(new_array, array1, size1 * sizeof(UINT));
+        // memcpy(new_array + size1, array2, size2 * sizeof(UINT));
+        let count = size1 + size2;
+        let mut new_array = Vec::with_capacity(count);
+        for i in 0..count {
+            new_array.push(0);
+        }
+        qsort::quick_sort(&mut new_array, 0, count);
+        new_array
     }
 
     fn create_control_mask(
