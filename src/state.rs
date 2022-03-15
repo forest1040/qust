@@ -714,6 +714,148 @@ impl QuantumState {
         }
     }
 
+    pub fn single_qubit_Pauli_gate(
+        &mut self,
+        target_qubit_index: usize,
+        pauli_operator_type: usize,
+        dim: u64,
+    ) {
+        // TODO: enum化
+        // match pauli_operator_type {
+        //     1 => self.X_gate(target_qubit_index, dim),
+        //     2 => self.Y_gate(target_qubit_index, dim),
+        //     3 => self.Z_gate(target_qubit_index, dim),
+        // }
+        if pauli_operator_type == 1 {
+            self.X_gate(target_qubit_index, dim);
+        } else if pauli_operator_type == 2 {
+            self.Y_gate(target_qubit_index, dim);
+        } else {
+            self.Z_gate(target_qubit_index, dim);
+        }
+    }
+
+    pub fn X_gate(&mut self, target_qubit_index: usize, dim: u64) {
+        let loop_dim = dim / 2;
+        let mask = 1 << target_qubit_index;
+        let mask_low = mask - 1;
+        let mask_high = !mask_low;
+        if target_qubit_index == 0 {
+            for basis_index in (0..dim as usize).step_by(2) {
+                let temp = self.state_vector[basis_index];
+                self.state_vector[basis_index] = self.state_vector[basis_index + 1];
+                self.state_vector[basis_index + 1] = temp;
+            }
+        } else {
+            for state_index in (0..loop_dim as usize).step_by(2) {
+                let basis_index_0 = (state_index & mask_low) + ((state_index & mask_high) << 1);
+                let basis_index_1 = basis_index_0 + mask;
+                let temp0 = self.state_vector[basis_index_0];
+                let temp1 = self.state_vector[basis_index_0 + 1];
+                self.state_vector[basis_index_0] = self.state_vector[basis_index_1];
+                self.state_vector[basis_index_0 + 1] = self.state_vector[basis_index_1 + 1];
+                self.state_vector[basis_index_1] = temp0;
+                self.state_vector[basis_index_1 + 1] = temp1;
+            }
+        }
+    }
+
+    pub fn Y_gate(&mut self, target_qubit_index: usize, dim: u64) {
+        let loop_dim = dim / 2;
+        let mask = 1 << target_qubit_index;
+        let mask_low = mask - 1;
+        let mask_high = !mask_low;
+        let imag = Complex64 { re: 0., im: 1. };
+        if target_qubit_index == 0 {
+            for basis_index in (0..dim as usize).step_by(2) {
+                let temp0 = self.state_vector[basis_index];
+                self.state_vector[basis_index] = -imag * self.state_vector[basis_index + 1];
+                self.state_vector[basis_index + 1] = imag * temp0;
+            }
+        } else {
+            for state_index in (0..loop_dim as usize).step_by(2) {
+                let basis_index_0 = (state_index & mask_low) + ((state_index & mask_high) << 1);
+                let basis_index_1 = basis_index_0 + mask;
+                let temp0 = self.state_vector[basis_index_0];
+                let temp1 = self.state_vector[basis_index_0 + 1];
+                self.state_vector[basis_index_0] = -imag * self.state_vector[basis_index_1];
+                self.state_vector[basis_index_0 + 1] = -imag * self.state_vector[basis_index_1 + 1];
+                self.state_vector[basis_index_1] = imag * temp0;
+                self.state_vector[basis_index_1 + 1] = imag * temp1;
+            }
+        }
+    }
+
+    pub fn Z_gate(&mut self, target_qubit_index: usize, dim: u64) {
+        let loop_dim = dim / 2;
+        let mask = 1 << target_qubit_index;
+        let mask_low = mask - 1;
+        let mask_high = !mask_low;
+        if target_qubit_index == 0 {
+            for state_index in (1..loop_dim as usize).step_by(2) {
+                self.state_vector[state_index] *= Complex64 { re: -1., im: 0. };
+            }
+        } else {
+            for state_index in (0..loop_dim as usize).step_by(2) {
+                let basis_index = (state_index & mask_low) + ((state_index & mask_high) << 1);
+                self.state_vector[basis_index] *= Complex64 { re: -1., im: 0. };
+                self.state_vector[basis_index + 1] *= Complex64 { re: -1., im: 0. };
+            }
+        }
+    }
+
+    pub fn single_qubit_Pauli_rotation_gate(
+        &mut self,
+        target_qubit_index: usize,
+        pauli_operator_type: usize,
+        angle: f64,
+        dim: u64,
+    ) {
+        // TODO: enum化
+        if pauli_operator_type == 1 {
+            self.RX_gate(target_qubit_index, dim);
+        } else if pauli_operator_type == 2 {
+            self.RY_gate(target_qubit_index, dim);
+        } else {
+            self.RZ_gate(target_qubit_index, dim);
+        }
+    }
+
+    // void RX_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
+    //     CTYPE matrix[4];
+    //     double c, s;
+    //     c = cos(angle / 2);
+    //     s = sin(angle / 2);
+    //     matrix[0] = c;
+    //     matrix[1] = 1.i * s;
+    //     matrix[2] = 1.i * s;
+    //     matrix[3] = c;
+    //     single_qubit_dense_matrix_gate(target_qubit_index, matrix, state, dim);
+    // }
+
+    // void RY_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
+    //     CTYPE matrix[4];
+    //     double c, s;
+    //     c = cos(angle / 2);
+    //     s = sin(angle / 2);
+    //     matrix[0] = c;
+    //     matrix[1] = s;
+    //     matrix[2] = -s;
+    //     matrix[3] = c;
+    //     single_qubit_dense_matrix_gate(target_qubit_index, matrix, state, dim);
+    // }
+
+    // void RZ_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
+    //     CTYPE diagonal_matrix[2];
+    //     double c, s;
+    //     c = cos(angle / 2);
+    //     s = sin(angle / 2);
+    //     diagonal_matrix[0] = c + 1.i * s;
+    //     diagonal_matrix[1] = c - 1.i * s;
+    //     single_qubit_diagonal_matrix_gate(
+    //         target_qubit_index, diagonal_matrix, state, dim);
+    // }
+
     #[inline]
     fn get_min_ui(index_0: u64, index_1: u64) -> u64 {
         if index_0 < index_1 {

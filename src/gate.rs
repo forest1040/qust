@@ -153,6 +153,11 @@ impl QuantumGate {
             .into_shape(h * w)
             .unwrap()
             .to_vec();
+
+        // TODO: vector2を参照渡しにする
+        // TODO: Vecのsizeをわざわざ渡さなくてよい
+        // TODO: usizeとu64を統一する
+
         match self.matrix_type {
             GateMatrixType::DenseMatrix => {
                 // single qubit dense matrix gate
@@ -233,7 +238,37 @@ impl QuantumGate {
                     }
                 }
             }
-            GateMatrixType::PauliMatrix => {}
+            GateMatrixType::PauliMatrix => {
+                if self.target_qubit_index.len() == 1 {
+                    if self.rotation_angle.abs() < 1e-16 {
+                        state.single_qubit_Pauli_gate(
+                            self.target_qubit_index[0],
+                            self.pauli_id[0],
+                            state.get_dim(),
+                        );
+                    } else {
+                        // invert
+                        state.single_qubit_Pauli_rotation_gate(
+                            self.target_qubit_index[0],
+                            self.pauli_id[0],
+                            -1. * self.rotation_angle,
+                            state.get_dim(),
+                        );
+                    }
+                } else {
+                    // if (self.rotation_angle.abs() < 1e-16) {
+                    //     multi_qubit_Pauli_gate_partial_list(_target_qubit_index.data(),
+                    //         _pauli_id.data(), (UINT)_target_qubit_index.size(),
+                    //         state->data_c(), state->dim);
+                    // } else {
+                    //     // invert
+                    //     multi_qubit_Pauli_rotation_gate_partial_list(
+                    //         _target_qubit_index.data(), _pauli_id.data(),
+                    //         (UINT)_target_qubit_index.size(), -_rotation_angle,
+                    //         state->data_c(), state->dim);
+                    // }
+                }
+            }
         }
     }
 
