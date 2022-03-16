@@ -256,17 +256,23 @@ impl QuantumGate {
                         );
                     }
                 } else {
-                    // if (self.rotation_angle.abs() < 1e-16) {
-                    //     multi_qubit_Pauli_gate_partial_list(_target_qubit_index.data(),
-                    //         _pauli_id.data(), (UINT)_target_qubit_index.size(),
-                    //         state->data_c(), state->dim);
-                    // } else {
-                    //     // invert
-                    //     multi_qubit_Pauli_rotation_gate_partial_list(
-                    //         _target_qubit_index.data(), _pauli_id.data(),
-                    //         (UINT)_target_qubit_index.size(), -_rotation_angle,
-                    //         state->data_c(), state->dim);
-                    // }
+                    if self.rotation_angle.abs() < 1e-16 {
+                        state.multi_qubit_Pauli_gate_partial_list(
+                            &self.target_qubit_index,
+                            &self.pauli_id,
+                            self.target_qubit_index.len(),
+                            state.get_dim() as usize,
+                        );
+                    } else {
+                        // invert
+                        state.multi_qubit_Pauli_rotation_gate_partial_list(
+                            &self.target_qubit_index,
+                            &self.pauli_id,
+                            self.target_qubit_index.len(),
+                            self.rotation_angle,
+                            state.get_dim() as usize,
+                        )
+                    }
                 }
             }
         }

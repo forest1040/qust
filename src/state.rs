@@ -23,6 +23,13 @@ pub struct QuantumState {
 }
 
 impl QuantumState {
+    const PHASE_M90ROT: [Complex64; 4] = [
+        Complex64 { re: 1., im: 0. },
+        Complex64 { re: 0., im: -1. },
+        Complex64 { re: -1., im: 0. },
+        Complex64 { re: 0., im: 1. },
+    ];
+
     pub fn new(qubit_count: u32) -> QuantumState {
         let dim = 1 << qubit_count;
         let state_vector = QuantumState::create_init_state(dim);
@@ -250,6 +257,28 @@ impl QuantumState {
                     matrix[0] * cval2 + matrix[1] * cval3;
                 self.state_vector[(basis_index_1 + 1) as usize] =
                     matrix[2] * cval2 + matrix[3] * cval3;
+            }
+        }
+    }
+
+    pub fn single_qubit_diagonal_matrix_gate(
+        &mut self,
+        target_qubit_index: usize,
+        diagonal_matrix: Vec<Complex64>,
+        dim: u64,
+    ) {
+        let loop_dim = dim as usize;
+        if target_qubit_index == 0 {
+            for state_index in (0..loop_dim).step_by(2) {
+                self.state_vector[state_index] *= diagonal_matrix[0];
+                self.state_vector[state_index + 1] *= diagonal_matrix[1];
+            }
+        } else {
+            let mask = 1 << target_qubit_index;
+            for state_index in (0..loop_dim).step_by(2) {
+                let bitval = if (state_index & mask) != 0 { 1 } else { 0 };
+                self.state_vector[state_index] *= diagonal_matrix[bitval];
+                self.state_vector[state_index + 1] *= diagonal_matrix[bitval];
             }
         }
     }
@@ -813,48 +842,220 @@ impl QuantumState {
     ) {
         // TODO: enum化
         if pauli_operator_type == 1 {
-            self.RX_gate(target_qubit_index, dim);
+            self.RX_gate(target_qubit_index, angle, dim);
         } else if pauli_operator_type == 2 {
-            self.RY_gate(target_qubit_index, dim);
+            self.RY_gate(target_qubit_index, angle, dim);
         } else {
-            self.RZ_gate(target_qubit_index, dim);
+            self.RZ_gate(target_qubit_index, angle, dim);
         }
     }
 
-    // void RX_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
-    //     CTYPE matrix[4];
-    //     double c, s;
-    //     c = cos(angle / 2);
-    //     s = sin(angle / 2);
-    //     matrix[0] = c;
-    //     matrix[1] = 1.i * s;
-    //     matrix[2] = 1.i * s;
-    //     matrix[3] = c;
-    //     single_qubit_dense_matrix_gate(target_qubit_index, matrix, state, dim);
-    // }
+    pub fn RX_gate(&mut self, target_qubit_index: usize, angle: f64, dim: u64) {
+        let mut matrix = Vec::with_capacity(4);
+        let c = (angle / 2.).cos();
+        let s = (angle / 2.).sin();
+        matrix[0] = Complex64 { re: c, im: 0. };
+        matrix[1] = Complex64 { re: c, im: s };
+        matrix[2] = Complex64 { re: c, im: s };
+        matrix[3] = Complex64 { re: c, im: 0. };
+        self.single_qubit_dense_matrix_gate(target_qubit_index, matrix, dim);
+    }
 
-    // void RY_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
-    //     CTYPE matrix[4];
-    //     double c, s;
-    //     c = cos(angle / 2);
-    //     s = sin(angle / 2);
-    //     matrix[0] = c;
-    //     matrix[1] = s;
-    //     matrix[2] = -s;
-    //     matrix[3] = c;
-    //     single_qubit_dense_matrix_gate(target_qubit_index, matrix, state, dim);
-    // }
+    pub fn RY_gate(&mut self, target_qubit_index: usize, angle: f64, dim: u64) {
+        let mut matrix = Vec::with_capacity(4);
+        let c = (angle / 2.).cos();
+        let s = (angle / 2.).sin();
+        matrix[0] = Complex64 { re: c, im: 0. };
+        matrix[1] = Complex64 { re: s, im: 0. };
+        matrix[2] = Complex64 {
+            re: -1. * s,
+            im: 0.,
+        };
+        matrix[3] = Complex64 { re: c, im: 0. };
+        self.single_qubit_dense_matrix_gate(target_qubit_index, matrix, dim);
+    }
 
-    // void RZ_gate(UINT target_qubit_index, double angle, CTYPE* state, ITYPE dim) {
-    //     CTYPE diagonal_matrix[2];
-    //     double c, s;
-    //     c = cos(angle / 2);
-    //     s = sin(angle / 2);
-    //     diagonal_matrix[0] = c + 1.i * s;
-    //     diagonal_matrix[1] = c - 1.i * s;
-    //     single_qubit_diagonal_matrix_gate(
-    //         target_qubit_index, diagonal_matrix, state, dim);
-    // }
+    pub fn RZ_gate(&mut self, target_qubit_index: usize, angle: f64, dim: u64) {
+        let mut matrix = Vec::with_capacity(2);
+        let c = (angle / 2.).cos();
+        let s = (angle / 2.).sin();
+        matrix[0] = Complex64 { re: c, im: s };
+        matrix[1] = Complex64 { re: c, im: -1. * s };
+        self.single_qubit_diagonal_matrix_gate(target_qubit_index, matrix, dim);
+    }
+
+    pub fn multi_qubit_Pauli_gate_partial_list(
+        &mut self,
+        target_qubit_index_list: &Vec<usize>,
+        Pauli_operator_type_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        dim: usize,
+    ) {
+        // create pauli mask and call function
+        let mut bit_flip_mask = 0;
+        let mut phase_flip_mask = 0;
+        let mut global_phase_90rot_count = 0;
+        let mut pivot_qubit_index = 0;
+        self.get_pauli_masks_partial_list(
+            target_qubit_index_list,
+            Pauli_operator_type_list,
+            target_qubit_index_count,
+            &mut bit_flip_mask,
+            &mut phase_flip_mask,
+            &mut global_phase_90rot_count,
+            &mut pivot_qubit_index,
+        );
+        if bit_flip_mask == 0 {
+            self.multi_qubit_Pauli_gate_Z_mask(phase_flip_mask, dim);
+        } else {
+            self.multi_qubit_Pauli_gate_XZ_mask(
+                bit_flip_mask,
+                phase_flip_mask,
+                global_phase_90rot_count,
+                pivot_qubit_index,
+                dim,
+            );
+        }
+    }
+
+    fn get_pauli_masks_partial_list(
+        &self,
+        target_qubit_index_list: &Vec<usize>,
+        pauli_operator_type_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        bit_flip_mask: &mut u64,
+        phase_flip_mask: &mut u64,
+        global_phase_90rot_count: &mut u32,
+        pivot_qubit_index: &mut u32,
+    ) {
+        (*bit_flip_mask) = 0;
+        (*phase_flip_mask) = 0;
+        (*global_phase_90rot_count) = 0;
+        (*pivot_qubit_index) = 0;
+        for cursor in 0..target_qubit_index_count {
+            let target_qubit_index = target_qubit_index_list[cursor];
+            match pauli_operator_type_list[cursor] {
+                // I
+                0 => (),
+                // X
+                1 => {
+                    (*bit_flip_mask) ^= 1 << target_qubit_index;
+                    (*pivot_qubit_index) = target_qubit_index as u32;
+                }
+                // Y
+                2 => {
+                    (*bit_flip_mask) ^= 1 << target_qubit_index;
+                    (*phase_flip_mask) ^= 1 << target_qubit_index;
+                    (*global_phase_90rot_count) = *global_phase_90rot_count + 1;
+                    (*pivot_qubit_index) = target_qubit_index as u32;
+                }
+                // Z
+                3 => {
+                    (*phase_flip_mask) ^= 1 << target_qubit_index;
+                }
+                _ => (),
+            }
+        }
+    }
+
+    pub fn multi_qubit_Pauli_gate_Z_mask(&mut self, phase_flip_mask: u64, dim: usize) {
+        // loop varaibles
+        let loop_dim = dim;
+        for state_index in 0..loop_dim {
+            // determine parity
+            let bit_parity =
+                QuantumState::count_population(state_index as u64 & phase_flip_mask as u64) % 2;
+            // set values
+            if bit_parity % 2 == 1 {
+                self.state_vector[state_index] *= -1.;
+            }
+        }
+    }
+
+    pub fn multi_qubit_Pauli_gate_XZ_mask(
+        &mut self,
+        bit_flip_mask: u64,
+        phase_flip_mask: u64,
+        global_phase_90rot_count: u32,
+        pivot_qubit_index: u32,
+        dim: usize,
+    ) {
+        // loop varaibles
+        let loop_dim = dim / 2;
+        let mask = (1 << pivot_qubit_index);
+        let mask_low = mask - 1;
+        let mask_high = !mask_low;
+        for state_index in 0..loop_dim {
+            // create base index
+            let basis_0 = (state_index & mask_low) + ((state_index & mask_high) << 1);
+
+            // gather index
+            let basis_1 = basis_0 ^ bit_flip_mask as usize;
+
+            // determine sign
+            let sign_0 =
+                QuantumState::count_population(basis_0 as u64 & phase_flip_mask as u64) % 2;
+            let sign_1 =
+                QuantumState::count_population(basis_1 as u64 & phase_flip_mask as u64) % 2;
+
+            // fetch values
+            let cval_0 = self.state_vector[basis_0];
+            let cval_1 = self.state_vector[basis_1];
+
+            // set values
+            let ind1 = (global_phase_90rot_count + sign_0 as u32 * 2) % 4;
+            let ind2 = (global_phase_90rot_count + sign_1 as u32 * 2) % 4;
+            self.state_vector[basis_0] = cval_1 * QuantumState::PHASE_M90ROT[ind1 as usize];
+            self.state_vector[basis_1] = cval_0 * QuantumState::PHASE_M90ROT[ind2 as usize];
+        }
+    }
+
+    pub fn multi_qubit_Pauli_rotation_gate_partial_list(
+        &mut self,
+        target_qubit_index_list: &Vec<usize>,
+        Pauli_operator_type_list: &Vec<usize>,
+        target_qubit_index_count: usize,
+        angle: f64,
+        dim: usize,
+    ) {
+        // create pauli mask and call function
+        let bit_flip_mask = 0;
+        let phase_flip_mask = 0;
+        let global_phase_90rot_count = 0;
+        let pivot_qubit_index = 0;
+        self.get_pauli_masks_partial_list(
+            target_qubit_index_list,
+            Pauli_operator_type_list,
+            target_qubit_index_count,
+            &mut bit_flip_mask,
+            &mut phase_flip_mask,
+            &mut global_phase_90rot_count,
+            &mut pivot_qubit_index,
+        );
+        if bit_flip_mask == 0 {
+            self.multi_qubit_Pauli_rotation_gate_Z_mask(phase_flip_mask, angle, dim);
+        } else {
+            self.multi_qubit_Pauli_rotation_gate_XZ_mask(
+                bit_flip_mask,
+                phase_flip_mask,
+                global_phase_90rot_count,
+                pivot_qubit_index,
+                angle,
+                dim,
+            );
+        }
+    }
+
+    #[inline]
+    fn count_population(mut x: u64) -> u64 {
+        x = ((x & 0xaaaaaaaaaaaaaaaa) >> 1) + (x & 0x5555555555555555);
+        x = ((x & 0xcccccccccccccccc) >> 2) + (x & 0x3333333333333333);
+        x = ((x & 0xf0f0f0f0f0f0f0f0) >> 4) + (x & 0x0f0f0f0f0f0f0f0f);
+        x = ((x & 0xff00ff00ff00ff00) >> 8) + (x & 0x00ff00ff00ff00ff);
+        x = ((x & 0xffff0000ffff0000) >> 16) + (x & 0x0000ffff0000ffff);
+        x = ((x & 0xffffffff00000000) >> 32) + (x & 0x00000000ffffffff);
+        x
+    }
 
     #[inline]
     fn get_min_ui(index_0: u64, index_1: u64) -> u64 {
