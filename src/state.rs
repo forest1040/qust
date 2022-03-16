@@ -1013,19 +1013,19 @@ impl QuantumState {
     pub fn multi_qubit_Pauli_rotation_gate_partial_list(
         &mut self,
         target_qubit_index_list: &Vec<usize>,
-        Pauli_operator_type_list: &Vec<usize>,
+        pauli_operator_type_list: &Vec<usize>,
         target_qubit_index_count: usize,
         angle: f64,
         dim: usize,
     ) {
         // create pauli mask and call function
-        let bit_flip_mask = 0;
-        let phase_flip_mask = 0;
-        let global_phase_90rot_count = 0;
-        let pivot_qubit_index = 0;
+        let mut bit_flip_mask = 0;
+        let mut phase_flip_mask = 0;
+        let mut global_phase_90rot_count = 0;
+        let mut pivot_qubit_index = 0;
         self.get_pauli_masks_partial_list(
             target_qubit_index_list,
-            Pauli_operator_type_list,
+            pauli_operator_type_list,
             target_qubit_index_count,
             &mut bit_flip_mask,
             &mut phase_flip_mask,
@@ -1043,6 +1043,73 @@ impl QuantumState {
                 angle,
                 dim,
             );
+        }
+    }
+
+    pub fn multi_qubit_Pauli_rotation_gate_Z_mask(
+        &mut self,
+        phase_flip_mask: u64,
+        angle: f64,
+        dim: usize,
+    ) {
+        // loop variables
+        let loop_dim = dim;
+        // coefs
+        let cosval = (angle / 2.).cos();
+        let sinval = (angle / 2.).sin();
+        for state_index in 0..loop_dim {
+            // determine sign
+            let bit_parity =
+                QuantumState::count_population(state_index as u64 & phase_flip_mask as u64) % 2;
+            let sign = 1 - 2 * bit_parity;
+            let sign = sign as f64;
+            // set value
+            self.state_vector[state_index] *= cosval + sign * Complex64 { re: 0., im: 1. } * sinval;
+        }
+    }
+
+    pub fn multi_qubit_Pauli_rotation_gate_XZ_mask(
+        &mut self,
+        bit_flip_mask: u64,
+        phase_flip_mask: u64,
+        global_phase_90rot_count: u32,
+        pivot_qubit_index: u32,
+        angle: f64,
+        dim: usize,
+    ) {
+        // loop varaibles
+        let loop_dim = dim / 2;
+
+        let mask = 1 << pivot_qubit_index;
+        let mask_low = mask - 1;
+        let mask_high = !mask_low;
+
+        // coefs
+        let cosval = (angle / 2.).cos();
+        let sinval = (angle / 2.).sin();
+
+        for state_index in 0..loop_dim {
+            // create base index
+            let basis_0 = (state_index & mask_low) + ((state_index & mask_high) << 1);
+
+            // gather index
+            let basis_1 = basis_0 ^ bit_flip_mask as usize;
+
+            // determine parity
+            let bit_parity_0 = QuantumState::count_population(basis_0 as u64 & phase_flip_mask) % 2;
+            let bit_parity_1 = QuantumState::count_population(basis_1 as u64 & phase_flip_mask) % 2;
+
+            // fetch values
+            let cval_0 = self.state_vector[basis_0];
+            let cval_1 = self.state_vector[basis_1];
+
+            // set values
+            let ind1 = (global_phase_90rot_count as usize + bit_parity_0 as usize * 2) % 4;
+            let ind2 = (global_phase_90rot_count as usize + bit_parity_1 as usize * 2) % 4;
+            self.state_vector[basis_0] = cosval * cval_0
+                + Complex64 { re: 0., im: 1. } * sinval * cval_1 * QuantumState::PHASE_M90ROT[ind1];
+            self.state_vector[basis_1] = cosval * cval_1
+                + Complex64 { re: 0., im: 1. } * sinval * cval_0 * QuantumState::PHASE_M90ROT[ind2];
         }
     }
 
