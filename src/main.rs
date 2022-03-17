@@ -77,4 +77,5 @@ fn main() {
     let target_index = 1;
     let x_gate = QuantumGate::X(target_index);
     println!("{:?}", x_gate);
+    //println!("{}", x_gate);
 }

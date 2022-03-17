@@ -3,6 +3,7 @@ use crate::state::QuantumState;
 //use crate::update_ops_matrix_dense_single;
 use ndarray::prelude::*;
 use num_complex::Complex64;
+use std::fmt;
 
 // enum MapType {
 //     Basic,
@@ -284,6 +285,19 @@ impl QuantumGate {
     //     QuantumGate {matrix_type, }
 
     // }
+}
+
+impl fmt::Display for QuantumGate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let tmp = format!(
+            r" *** gate info *** 
+* gate name : {}
+* target    : {}
+",
+            "name", "",
+        );
+        write!(f, "{}", tmp)
+    }
 }
 
 pub trait DenseMatrixGate {
