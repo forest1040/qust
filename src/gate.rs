@@ -12,6 +12,7 @@ use num_complex::Complex64;
 //     Instrument,
 // }
 
+#[derive(Debug)]
 enum GateMatrixType {
     DenseMatrix,
     // TODO
@@ -73,6 +74,7 @@ impl PauliID {
     }
 }
 
+#[derive(Debug)]
 pub struct QuantumGate {
     //map_type: MapType,
     matrix_type: GateMatrixType,
@@ -282,9 +284,10 @@ impl QuantumGate {
     //     QuantumGate {matrix_type, }
 
     // }
+}
 
-    //#[warn(non_snake_case)]
-    pub fn DenseMatrixGate(
+pub trait DenseMatrixGate {
+    fn DenseMatrixGate(
         target_qubit_index: Vec<usize>,
         dense_matrix_element: Array2<Complex64>,
         target_qubit_commutation: Vec<usize>,
@@ -306,9 +309,11 @@ impl QuantumGate {
             rotation_angle: 0.,
         }
     }
+}
+impl DenseMatrixGate for QuantumGate {}
 
-    //#[warn(non_snake_case)]
-    pub fn PauliMatrixGate(
+pub trait PauliMatrixGate {
+    fn PauliMatrixGate(
         target_qubit_index: Vec<usize>,
         pauli_id: Vec<usize>,
         rotation_angle: f64,
@@ -322,7 +327,6 @@ impl QuantumGate {
         for i in 0..target_qubit_index.len() {
             target_commute.push(pauli_id[i]);
         }
-
         QuantumGate {
             matrix_type: GateMatrixType::DenseMatrix,
             target_qubit_index,
@@ -335,3 +339,36 @@ impl QuantumGate {
         }
     }
 }
+impl PauliMatrixGate for QuantumGate {}
+
+const FLAG_COMMUTE_X: usize = 0x01;
+const FLAG_COMMUTE_Y: usize = 0x02;
+const FLAG_COMMUTE_Z: usize = 0x04;
+
+const COMP_ZERO: Complex64 = Complex64 { re: 0., im: 0. };
+const COMP_ONE: Complex64 = Complex64 { re: 1., im: 0. };
+
+pub trait Identity {
+    fn Identity(target_qubit: usize) -> QuantumGate {
+        // let target_qubit_index = vec![target_qubit];
+        // let dense_matrix_element: Array2<Complex64> = Array2::eye(2);
+        // let target_qubit_commutation = vec![FLAG_COMMUTE_X | FLAG_COMMUTE_Y | FLAG_COMMUTE_Z];
+        QuantumGate::DenseMatrixGate(
+            vec![target_qubit],
+            Array2::eye(2),
+            vec![FLAG_COMMUTE_X | FLAG_COMMUTE_Y | FLAG_COMMUTE_Z],
+        )
+    }
+}
+impl Identity for QuantumGate {}
+
+pub trait X {
+    fn X(target_qubit: usize) -> QuantumGate {
+        QuantumGate::DenseMatrixGate(
+            vec![target_qubit],
+            array![[COMP_ZERO, COMP_ONE], [COMP_ONE, COMP_ZERO]],
+            vec![FLAG_COMMUTE_X | FLAG_COMMUTE_Y | FLAG_COMMUTE_Z],
+        )
+    }
+}
+impl X for QuantumGate {}

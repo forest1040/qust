@@ -1,9 +1,12 @@
 use num_complex::Complex64;
+use qust::gate::*;
 use qust::state::QuantumState;
 
 // TODO: 内部表現のnum_complex::Complex64を隠蔽したい loadのIFの追加
 
 fn main() {
+    // ============= 量子状態 =================
+    println!("QuantumState");
     let n = 4;
     let state = QuantumState::new(n);
     println!("{}", state);
@@ -67,4 +70,11 @@ fn main() {
     // 内積値の計算
     let value = QuantumState::inner_product(state_bra, state_ket);
     println!("{:?}", value);
+
+    // ============= 量子ゲート =================
+    println!("QuantumGate");
+    // 量子ゲートの生成
+    let target_index = 1;
+    let x_gate = QuantumGate::X(target_index);
+    println!("{:?}", x_gate);
 }
