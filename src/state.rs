@@ -676,10 +676,10 @@ impl QuantumState {
         // memcpy(new_array, array, size * sizeof(UINT));
         let count = size + 1;
         let mut new_array = Vec::with_capacity(count);
-        for i in 0..count {
-            new_array.push(0);
+        for i in 0..size {
+            new_array.push(array[i]);
         }
-        new_array[size] = value;
+        new_array.push(value);
         //sort_ui(new_array, size + 1);
         qsort::quick_sort(&mut new_array, 0, count);
         new_array
@@ -697,8 +697,11 @@ impl QuantumState {
         // memcpy(new_array + size1, array2, size2 * sizeof(UINT));
         let count = size1 + size2;
         let mut new_array = Vec::with_capacity(count);
-        for i in 0..count {
-            new_array.push(0);
+        for i in 0..size1 {
+            new_array.push(array1[i]);
+        }
+        for i in 0..size2 {
+            new_array.push(array2[i]);
         }
         qsort::quick_sort(&mut new_array, 0, count);
         new_array
