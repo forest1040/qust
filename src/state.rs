@@ -1148,7 +1148,7 @@ impl fmt::Display for QuantumState {
         // TODO: state_vector format
         let sv: Vec<String> = self.state_vector.iter().map(|x| x.to_string()).collect();
         let svs = sv.join("\n");
-        let tmp = format!(
+        let msg = format!(
             r"* Qubit Count  : {}
 * Dimension    : {}
 * State vector :
@@ -1156,6 +1156,6 @@ impl fmt::Display for QuantumState {
 ",
             self.qubit_count, self.dim, svs
         );
-        write!(f, "{}", tmp)
+        write!(f, "{}", msg)
     }
 }
